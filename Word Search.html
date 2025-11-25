@@ -33,18 +33,18 @@
     }
     .grid {
       display: grid;
-      grid-template-columns: repeat(14, minmax(20px, 26px));
-      grid-template-rows: repeat(14, minmax(20px, 26px));
-      gap: 2px;
+      grid-template-columns: repeat(10, minmax(32px, 38px));
+      grid-template-rows: repeat(10, minmax(32px, 38px));
+      gap: 3px;
       user-select: none;
-      touch-action: manipulation; /* helps on mobile */
+      touch-action: manipulation;
     }
     .cell {
       border: 1px solid #999;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 0.8rem;
+      font-size: 1rem;
       cursor: pointer;
       background: #ffffff;
       border-radius: 4px;
@@ -98,7 +98,7 @@
   <h1>Different Isn’t a Dirty Word – Word Search</h1>
   <p>
     Tap the <strong>first</strong> letter of a word, then tap the <strong>last</strong> letter
-    to highlight it. Words may go up, down, sideways, or diagonally.
+    to highlight it. Words only go left-to-right or top-to-bottom.
   </p>
 
   <div class="wordsearch-container">
@@ -109,13 +109,13 @@
         <ul id="wordList"></ul>
       </div>
       <p class="hint">
-        Hint: Look for names and words from Neeko, Zara, and Max’s story!
+        Find all the words from Neeko, Zara, and Max’s story!
       </p>
     </div>
   </div>
 
   <script>
-    // Option A word list
+    // Final 10-word list
     const words = [
       "NEEKO",
       "ZARA",
@@ -126,28 +126,22 @@
       "BRAVE",
       "SMILE",
       "WINGS",
-      "HOP",
-      "CLIMB",
-      "KIND"
+      "HOP"
     ];
 
-    // Same 14x14 grid as before
+    // 10x10 grid (only horizontal & vertical word placements)
     const gridData = [
-      "L Q N G J D L L I M C V Z I",
-      "H R C P Q U W B X N F P Q L",
-      "O D I F F E R E N T Y O H E",
-      "P F N I K M S U Z R A R A M",
-      "E R I W L U J O I V M E O K",
-      "Z C E N U Q I U N J W B P I",
-      "Q L R B C M B R A V E P K N",
-      "W F L I D N A Q M K W A R D",
-      "I R I E G Q L G S Y S L J P",
-      "N I Y N E E K O I I J E L F",
-      "G E S G P U V U C V E F M P",
-      "S H U L B J Y T D R B S Z R",
-      "A M Y X F R I E N D S A T Z",
-      "K I N D X C L I M B W I N G"
-    ].map(row => row.split(" "));
+      ["F","A","F","R","I","E","N","D","S","Z"],
+      ["H","O","P","H","F","D","Z","P","W","N"],
+      ["M","M","H","A","Y","I","H","Z","I","E"],
+      ["M","B","T","M","U","F","N","A","N","E"],
+      ["D","S","B","D","N","F","N","R","G","K"],
+      ["H","M","R","I","I","E","V","A","S","O"],
+      ["X","I","A","O","Q","R","T","O","T","I"],
+      ["L","L","V","D","U","E","U","K","I","L"],
+      ["L","E","E","R","E","N","Z","I","Y","H"],
+      ["M","A","X","G","U","T","Y","Q","B","Y"]
+    ];
 
     const numRows = gridData.length;
     const numCols = gridData[0].length;
@@ -155,7 +149,6 @@
     const gridEl = document.getElementById("grid");
     const wordListEl = document.getElementById("wordList");
 
-    // Track which words are found
     const wordState = {};
     words.forEach(w => (wordState[w] = false));
 
@@ -182,12 +175,9 @@
       }
     }
 
-    // --- Mobile-friendly selection: tap first cell, then tap last cell ---
-
     let startCell = null;
 
     function clearTempSelection() {
-      // Only clear "selected" (start marker), keep "found"
       gridEl.querySelectorAll(".cell.selected").forEach(el => {
         el.classList.remove("selected");
       });
@@ -198,37 +188,25 @@
       const c = parseInt(cell.dataset.col, 10);
 
       if (!startCell) {
-        // First tap: mark starting cell
         startCell = { r, c };
         clearTempSelection();
         cell.classList.add("selected");
         return;
       } else {
-        // Second tap: try to build a word between startCell and current cell
         const endCell = { r, c };
-
         const dr = endCell.r - startCell.r;
         const dc = endCell.c - startCell.c;
 
-        // No movement = ignore
-        if (dr === 0 && dc === 0) {
+        // Only allow horizontal or vertical
+        if (!(dr === 0 || dc === 0)) {
           clearTempSelection();
           startCell = null;
           return;
         }
 
-        // Normalize direction
         const stepR = dr === 0 ? 0 : dr / Math.abs(dr);
         const stepC = dc === 0 ? 0 : dc / Math.abs(dc);
 
-        // Ensure it's straight (horizontal, vertical, or diagonal)
-        if (!(stepR === 0 || stepC === 0 || Math.abs(stepR) === Math.abs(stepC))) {
-          clearTempSelection();
-          startCell = null;
-          return;
-        }
-
-        // Build path from start to end
         const path = [];
         let curR = startCell.r;
         let curC = startCell.c;
@@ -237,30 +215,21 @@
         while (curR !== endCell.r || curC !== endCell.c) {
           curR += stepR;
           curC += stepC;
-          // Safety check
-          if (curR < 0 || curR >= numRows || curC < 0 || curC >= numCols) {
-            break;
-          }
+          if (curR < 0 || curR >= numRows || curC < 0 || curC >= numCols) break;
           path.push({ r: curR, c: curC });
         }
 
-        // Build word in both directions
-        const lettersForward = path.map(pos => gridData[pos.r][pos.c]).join("");
-        const lettersBackward = path
-          .slice()
-          .reverse()
-          .map(pos => gridData[pos.r][pos.c])
-          .join("");
+        const letters = path.map(pos => gridData[pos.r][pos.c]).join("");
+        const reversed = letters.split("").reverse().join("");
 
         let foundWord = null;
-        if (words.includes(lettersForward)) {
-          foundWord = lettersForward;
-        } else if (words.includes(lettersBackward)) {
-          foundWord = lettersBackward;
+        if (words.includes(letters)) {
+          foundWord = letters;
+        } else if (words.includes(reversed)) {
+          foundWord = reversed;
         }
 
         if (foundWord && !wordState[foundWord]) {
-          // Mark as found
           wordState[foundWord] = true;
           path.forEach(pos => {
             cells[pos.r][pos.c].classList.remove("selected");
@@ -269,16 +238,13 @@
           const li = document.getElementById("word-" + foundWord);
           if (li) li.classList.add("found");
         } else {
-          // No valid word found with that line
           clearTempSelection();
         }
 
-        // Reset start cell
         startCell = null;
       }
     }
 
-    // Attach click handler (works for both mouse & touch)
     gridEl.addEventListener("click", e => {
       if (!e.target.classList.contains("cell")) return;
       handleCellTap(e.target);
