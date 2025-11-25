@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Different Isn’t a Dirty Word – Word Search</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f7f7ff;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+    }
+    .wordsearch-container {
+      display: flex;
+      gap: 40px;
+      justify-content: center;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(14, 28px);
+      grid-template-rows: repeat(14, 28px);
+      gap: 2px;
+      user-select: none;
+    }
+    .cell {
+      width: 28px;
+      height: 28px;
+      border: 1px solid #999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      cursor: pointer;
+      background: #ffffff;
+    }
+    .cell.selected {
+      background: #c5d5ff;
+    }
+    .cell.found {
+      background: #88d498;
+      color: #000;
+      font-weight: bold;
+    }
+    .word-list {
+      max-width: 220px;
+    }
+    .word-list h2 {
+      margin-top: 0;
+    }
+    .word-list ul {
+      list-style: none;
+      padding-left: 0;
+    }
+    .word-list li {
+      padding: 4px 0;
+    }
+    .word-list li.found {
+      text-decoration: line-through;
+      color: #777;
+    }
+  </style>
+</head>
+<body>
+  <h1>Different Isn’t a Dirty Word – Word Search</h1>
+  <p style="text-align:center;">
+    Find all the words from Neeko, Zara, and Max’s story! Words may go up, down, sideways, or diagonally.
+  </p>
+
+  <div class="wordsearch-container">
+    <div id="grid" class="grid"></div>
+    <div class="word-list">
+      <h2>Word List</h2>
+      <ul id="wordList"></ul>
+    </div>
+  </div>
+
+  <script>
+    // Same word list (Option A)
+    const words = [
+      "NEEKO",
+      "ZARA",
+      "MAX",
+      "FRIENDS",
+      "DIFFERENT",
+      "UNIQUE",
+      "BRAVE",
+      "SMILE",
+      "WINGS",
+      "HOP",
+      "CLIMB",
+      "KIND"
+    ];
+
+    // This grid matches one generated layout (you can change or re-randomize if desired)
+    // 14x14 letters
+    const gridData = [
+      "L Q N G J D L L I M C V Z I",
+      "H R C P Q U W B X N F P Q L",
+      "O D I F F E R E N T Y O H E",
+      "P F N I K M S U Z R A R A M",
+      "E R I W L U J O I V M E O K",
+      "Z C E N U Q I U N J W B P I",
+      "Q L R B C M B R A V E P K N",
+      "W F L I D N A Q M K W A R D",
+      "I R I E G Q L G S Y S L J P",
+      "N I Y N E E K O I I J E L F",
+      "G E S G P U V U C V E F M P",
+      "S H U L B J Y T D R B S Z R",
+      "A M Y X F R I E N D S A T Z",
+      "K I N D X C L I M B W I N G"
+    ].map(row => row.split(" "));
+
+    const numRows = gridData.length;
+    const numCols = gridData[0].length;
+
+    const gridEl = document.getElementById("grid");
+    const wordListEl = document.getElementById("wordList");
+
+    // Render word list
+    const wordState = {};
+    words.forEach(w => {
+      wordState[w] = false;
+      const li = document.createElement("li");
+      li.textContent = w;
+      li.id = "word-" + w;
+      wordListEl.appendChild(li);
+    });
+
+    // Render grid
+    const cells = [];
+    for (let r = 0; r < numRows; r++) {
+      cells[r] = [];
+      for (let c = 0; c < numCols; c++) {
+        const cell = document.createElement("div");
+        cell.className = "cell";
+        cell.textContent = gridData[r][c];
+        cell.dataset.row = r;
+        cell.dataset.col = c;
+        gridEl.appendChild(cell);
+        cells[r][c] = cell;
+      }
+    }
+
+    let isMouseDown = false;
+    let selection = [];
+
+    function clearSelection() {
+      selection.forEach(({ r, c }) => {
+        cells[r][c].classList.remove("selected");
+      });
+      selection = [];
+    }
+
+    gridEl.addEventListener("mousedown", e => {
+      if (!e.target.classList.contains("cell")) return;
+      isMouseDown = true;
+      clearSelection();
+      const r = parseInt(e.target.dataset.row, 10);
+      const c = parseInt(e.target.dataset.col, 10);
+      selection.push({ r, c });
+      e.target.classList.add("selected");
+    });
+
+    gridEl.addEventListener("mouseover", e => {
+      if (!isMouseDown || !e.target.classList.contains("cell")) return;
+      const r = parseInt(e.target.dataset.row, 10);
+      const c = parseInt(e.target.dataset.col, 10);
+      const already = selection.some(pos => pos.r === r && pos.c === c);
+      if (!already) {
+        selection.push({ r, c });
+        e.target.classList.add("selected");
+      }
+    });
+
+    window.addEventListener("mouseup", () => {
+      if (!isMouseDown) return;
+      isMouseDown = false;
+
+      if (selection.length > 0) {
+        // Build word string from selection
+        const letters = selection.map(({ r, c }) => gridData[r][c]);
+        const candidate = letters.join("");
+        const reversed = letters.reverse().join("");
+
+        let foundWord = null;
+        if (words.includes(candidate)) {
+          foundWord = candidate;
+        } else if (words.includes(reversed)) {
+          foundWord = reversed;
+        }
+
+        if (foundWord && !wordState[foundWord]) {
+          // Mark found in state and UI
+          wordState[foundWord] = true;
+          selection.forEach(({ r, c }) => {
+            cells[r][c].classList.remove("selected");
+            cells[r][c].classList.add("found");
+          });
+          const li = document.getElementById("word-" + foundWord);
+          if (li) li.classList.add("found");
+        } else {
+          // Not a valid word: clear selection
+          clearSelection();
+        }
+      }
+    });
+  </script>
+</body>
+</html>
