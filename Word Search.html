@@ -3,39 +3,51 @@
 <head>
   <meta charset="UTF-8" />
   <title>Different Isn’t a Dirty Word – Word Search</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: #f7f7ff;
-      padding: 20px;
+      padding: 16px;
+      margin: 0;
     }
     h1 {
       text-align: center;
+      font-size: 1.4rem;
+      margin-bottom: 0.5rem;
+    }
+    p {
+      text-align: center;
+      font-size: 0.9rem;
+      margin-top: 0;
+      margin-bottom: 1rem;
     }
     .wordsearch-container {
       display: flex;
-      gap: 40px;
+      gap: 24px;
       justify-content: center;
       align-items: flex-start;
       flex-wrap: wrap;
+      max-width: 900px;
+      margin: 0 auto;
     }
     .grid {
       display: grid;
-      grid-template-columns: repeat(14, 28px);
-      grid-template-rows: repeat(14, 28px);
+      grid-template-columns: repeat(14, minmax(20px, 26px));
+      grid-template-rows: repeat(14, minmax(20px, 26px));
       gap: 2px;
       user-select: none;
+      touch-action: manipulation; /* helps on mobile */
     }
     .cell {
-      width: 28px;
-      height: 28px;
       border: 1px solid #999;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 14px;
+      font-size: 0.8rem;
       cursor: pointer;
       background: #ffffff;
+      border-radius: 4px;
     }
     .cell.selected {
       background: #c5d5ff;
@@ -45,41 +57,65 @@
       color: #000;
       font-weight: bold;
     }
-    .word-list {
-      max-width: 220px;
+    .sidebar {
+      max-width: 230px;
+      font-size: 0.9rem;
     }
     .word-list h2 {
       margin-top: 0;
+      font-size: 1rem;
     }
     .word-list ul {
       list-style: none;
       padding-left: 0;
+      margin: 0;
     }
     .word-list li {
-      padding: 4px 0;
+      padding: 3px 0;
     }
     .word-list li.found {
       text-decoration: line-through;
       color: #777;
     }
+    .hint {
+      font-size: 0.8rem;
+      color: #666;
+      margin-top: 0.5rem;
+    }
+    @media (max-width: 600px) {
+      .wordsearch-container {
+        flex-direction: column;
+        align-items: center;
+      }
+      .sidebar {
+        max-width: 100%;
+        text-align: center;
+      }
+    }
   </style>
 </head>
 <body>
   <h1>Different Isn’t a Dirty Word – Word Search</h1>
-  <p style="text-align:center;">
-    Find all the words from Neeko, Zara, and Max’s story! Words may go up, down, sideways, or diagonally.
+  <p>
+    Tap the <strong>first</strong> letter of a word, then tap the <strong>last</strong> letter
+    to highlight it. Words may go up, down, sideways, or diagonally.
   </p>
 
   <div class="wordsearch-container">
     <div id="grid" class="grid"></div>
-    <div class="word-list">
-      <h2>Word List</h2>
-      <ul id="wordList"></ul>
+    <div class="sidebar">
+      <div class="word-list">
+        <h2>Word List</h2>
+        <ul id="wordList"></ul>
+      </div>
+      <p class="hint">
+        Hint: Look for names and words from Neeko, Zara, and Max’s story!
+      </p>
     </div>
   </div>
 
   <script>
-    // Same word list (Option A)
+    // Option A word list
     const words = [
       "NEEKO",
       "ZARA",
@@ -95,8 +131,7 @@
       "KIND"
     ];
 
-    // This grid matches one generated layout (you can change or re-randomize if desired)
-    // 14x14 letters
+    // Same 14x14 grid as before
     const gridData = [
       "L Q N G J D L L I M C V Z I",
       "H R C P Q U W B X N F P Q L",
@@ -120,10 +155,12 @@
     const gridEl = document.getElementById("grid");
     const wordListEl = document.getElementById("wordList");
 
-    // Render word list
+    // Track which words are found
     const wordState = {};
+    words.forEach(w => (wordState[w] = false));
+
+    // Render word list
     words.forEach(w => {
-      wordState[w] = false;
       const li = document.createElement("li");
       li.textContent = w;
       li.id = "word-" + w;
@@ -145,68 +182,106 @@
       }
     }
 
-    let isMouseDown = false;
-    let selection = [];
+    // --- Mobile-friendly selection: tap first cell, then tap last cell ---
 
-    function clearSelection() {
-      selection.forEach(({ r, c }) => {
-        cells[r][c].classList.remove("selected");
+    let startCell = null;
+
+    function clearTempSelection() {
+      // Only clear "selected" (start marker), keep "found"
+      gridEl.querySelectorAll(".cell.selected").forEach(el => {
+        el.classList.remove("selected");
       });
-      selection = [];
     }
 
-    gridEl.addEventListener("mousedown", e => {
-      if (!e.target.classList.contains("cell")) return;
-      isMouseDown = true;
-      clearSelection();
-      const r = parseInt(e.target.dataset.row, 10);
-      const c = parseInt(e.target.dataset.col, 10);
-      selection.push({ r, c });
-      e.target.classList.add("selected");
-    });
+    function handleCellTap(cell) {
+      const r = parseInt(cell.dataset.row, 10);
+      const c = parseInt(cell.dataset.col, 10);
 
-    gridEl.addEventListener("mouseover", e => {
-      if (!isMouseDown || !e.target.classList.contains("cell")) return;
-      const r = parseInt(e.target.dataset.row, 10);
-      const c = parseInt(e.target.dataset.col, 10);
-      const already = selection.some(pos => pos.r === r && pos.c === c);
-      if (!already) {
-        selection.push({ r, c });
-        e.target.classList.add("selected");
-      }
-    });
+      if (!startCell) {
+        // First tap: mark starting cell
+        startCell = { r, c };
+        clearTempSelection();
+        cell.classList.add("selected");
+        return;
+      } else {
+        // Second tap: try to build a word between startCell and current cell
+        const endCell = { r, c };
 
-    window.addEventListener("mouseup", () => {
-      if (!isMouseDown) return;
-      isMouseDown = false;
+        const dr = endCell.r - startCell.r;
+        const dc = endCell.c - startCell.c;
 
-      if (selection.length > 0) {
-        // Build word string from selection
-        const letters = selection.map(({ r, c }) => gridData[r][c]);
-        const candidate = letters.join("");
-        const reversed = letters.reverse().join("");
+        // No movement = ignore
+        if (dr === 0 && dc === 0) {
+          clearTempSelection();
+          startCell = null;
+          return;
+        }
+
+        // Normalize direction
+        const stepR = dr === 0 ? 0 : dr / Math.abs(dr);
+        const stepC = dc === 0 ? 0 : dc / Math.abs(dc);
+
+        // Ensure it's straight (horizontal, vertical, or diagonal)
+        if (!(stepR === 0 || stepC === 0 || Math.abs(stepR) === Math.abs(stepC))) {
+          clearTempSelection();
+          startCell = null;
+          return;
+        }
+
+        // Build path from start to end
+        const path = [];
+        let curR = startCell.r;
+        let curC = startCell.c;
+        path.push({ r: curR, c: curC });
+
+        while (curR !== endCell.r || curC !== endCell.c) {
+          curR += stepR;
+          curC += stepC;
+          // Safety check
+          if (curR < 0 || curR >= numRows || curC < 0 || curC >= numCols) {
+            break;
+          }
+          path.push({ r: curR, c: curC });
+        }
+
+        // Build word in both directions
+        const lettersForward = path.map(pos => gridData[pos.r][pos.c]).join("");
+        const lettersBackward = path
+          .slice()
+          .reverse()
+          .map(pos => gridData[pos.r][pos.c])
+          .join("");
 
         let foundWord = null;
-        if (words.includes(candidate)) {
-          foundWord = candidate;
-        } else if (words.includes(reversed)) {
-          foundWord = reversed;
+        if (words.includes(lettersForward)) {
+          foundWord = lettersForward;
+        } else if (words.includes(lettersBackward)) {
+          foundWord = lettersBackward;
         }
 
         if (foundWord && !wordState[foundWord]) {
-          // Mark found in state and UI
+          // Mark as found
           wordState[foundWord] = true;
-          selection.forEach(({ r, c }) => {
-            cells[r][c].classList.remove("selected");
-            cells[r][c].classList.add("found");
+          path.forEach(pos => {
+            cells[pos.r][pos.c].classList.remove("selected");
+            cells[pos.r][pos.c].classList.add("found");
           });
           const li = document.getElementById("word-" + foundWord);
           if (li) li.classList.add("found");
         } else {
-          // Not a valid word: clear selection
-          clearSelection();
+          // No valid word found with that line
+          clearTempSelection();
         }
+
+        // Reset start cell
+        startCell = null;
       }
+    }
+
+    // Attach click handler (works for both mouse & touch)
+    gridEl.addEventListener("click", e => {
+      if (!e.target.classList.contains("cell")) return;
+      handleCellTap(e.target);
     });
   </script>
 </body>
